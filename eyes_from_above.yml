@@ -1,0 +1,133 @@
+
+tosca_definitions_version: tosca_simple_yaml_1_3
+
+# Define custom node types for the xApp, UAV, ML models
+node_types:
+  xapp_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      Standard:
+        inputs:
+          river_path_data:
+            value: { get_input: river_path_data }
+            type: string
+          waste_site_coordinates:
+            value: { get_input: waste_site_coordinates }
+            type: string
+          operations:
+            create: playbooks/create_xapp.yaml
+            delete: playbooks/delete_xapp.yaml
+
+  ml_model_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      Standard:
+        inputs:
+          satellite_image_feed:
+            value: { get_input: satellite_image_feed }
+            type: string
+          operations:
+            create: playbooks/create_ml_model.yaml
+            delete: playbooks/delete_ml_model.yaml
+
+  drone_controller_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      Standard:
+        inputs:
+          drone_commands:
+            value: { get_input: drone_commands }
+            type: string
+          operations:
+            create: playbooks/create_drone_controller.yaml
+            delete: playbooks/delete_drone_controller.yaml
+
+  personnel_dispatch_type:
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      Standard:
+        inputs:
+          cleanup_instruction:
+            value: { get_input: cleanup_instruction }
+            type: string
+          operations:
+            create: playbooks/create_dispatch.yaml
+            delete: playbooks/delete_dispatch.yaml
+
+# Define inputs for the entire topology
+topology_template:
+  inputs:
+    satellite_image_feed:
+      type: string
+      default: "Satellite_Image_Data"
+    river_path_data:
+      type: string
+      default: "River_Path_Data"
+    waste_site_coordinates:
+      type: string
+      default: "Waste_Site_Coordinates"
+    drone_commands:
+      type: string
+      default: "Drone_Commands"
+    cleanup_instruction:
+      type: string
+      default: "Personnel_Dispatch_Instruction"
+
+  # Define the node templates (components) for the system
+  node_templates:
+    my-workstation:
+      type: tosca.nodes.Compute
+      attributes: 
+        private_address: localhost
+        public_address: localhost
+
+    river_path_ml:
+      type: ml_model_type
+      requirements:
+        - host: my-workstation
+      interfaces:
+        Standard:
+          create: playbooks/create_ml_model.yaml
+          delete: playbooks/delete_ml_model.yaml
+
+    waste_detection_ml:
+      type: ml_model_type
+      requirements:
+        - host: my-workstation
+      interfaces:
+        Standard:
+          create: playbooks/create_ml_model.yaml
+          delete: playbooks/delete_ml_model.yaml
+
+    drone_controller:
+      type: drone_controller_type
+      requirements:
+        - host: my-workstation
+      interfaces:
+        Standard:
+          create: playbooks/create_drone_controller.yaml
+          delete: playbooks/delete_drone_controller.yaml
+
+    xapp:
+      type: xapp_type
+      requirements:
+        - host: my-workstation
+      interfaces:
+        Standard:
+          create: playbooks/create_xapp.yaml
+          delete: playbooks/delete_xapp.yaml
+
+    personnel_dispatch:
+      type: personnel_dispatch_type
+      requirements:
+        - host: my-workstation
+      interfaces:
+        Standard:
+          create: playbooks/create_dispatch.yaml
+          delete: playbooks/delete_dispatch.yaml
+
+# Outputs to display relevant data after the xApp operation
+outputs:
+  xapp_output:
+    description: "Results from xApp operations."
+    value: { get_attribute: [ xapp, public_address ] }
